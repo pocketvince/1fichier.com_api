@@ -1,0 +1,9 @@
+#!/bin/bash
+link_raw="$1"
+link=$(echo "$link_raw" | awk -F'&af=' '{print $1}')
+api="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+file=$(curl -H "Authorization: Bearer $api" -H "Content-Type: application/json" -X POST -i https://api.1fichier.com/v1/file/info.cgi -d '{"url":"'$link'","pretty":1}')
+filename=$(echo "$file" | grep '"filename"' | awk -F':' '{print $2}' | sed 's/^[ \t]*"//;s/"[ \t]*$//' | sed 's/..$//')
+url_download=$(curl -H "Authorization: Bearer $api" -H "Content-Type: application/json" -X POST -i https://api.1fichier.com/v1/download/get_token.cgi -d '{"url":"'$link'","pretty":1}')
+final_url=$(echo "$url_download" | grep '"url"' | awk -F'"' '{print $4}')
+curl -C - --retry 10 --retry-delay 10 "$final_url" --output "$filename"
