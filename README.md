@@ -4,6 +4,10 @@ Simple code for downloading files from 1fichier.com via api.
 
 ## Installation
 
+First, need to install jq:
+```Shell
+root@pocketvince:~# apt-get install jq
+```
 I advise placing the file in /bin/ for easier execution
 & replace the api key in the script, you can find it at https://1fichier.com/console/params.pl
 
