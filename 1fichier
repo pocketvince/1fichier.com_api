@@ -1,14 +1,22 @@
 #!/bin/bash
+#need to install jq: apt-get install jq -y
 link_raw="$1"
 link=$(echo "$link_raw" | awk -F'&af=' '{print $1}')
 api="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-file=$(curl -H "Authorization: Bearer $api" -H "Content-Type: application/json" -X POST -i https://api.1fichier.com/v1/file/info.cgi -d '{"url":"'$link'","pretty":1}')
-if echo "$file" | grep -q "Resource not found"; then
-    echo "The requested file does not exist"
-exit
-else
-filename=$(echo "$file" | grep '"filename"' | awk -F':' '{print $2}' | sed 's/^[ \t]*"//;s/"[ \t]*$//' | sed 's/..$//')
-url_download=$(curl -H "Authorization: Bearer $api" -H "Content-Type: application/json" -X POST -i https://api.1fichier.com/v1/download/get_token.cgi -d '{"url":"'$link'","pretty":1}')
-final_url=$(echo "$url_download" | grep '"url"' | awk -F'"' '{print $4}')
-curl -C - --retry 10 --retry-delay 10 "$final_url" --output "$filename"
-fi
+
+H=(-H "Authorization: Bearer $api" -H "Content-Type: application/json" -H "Accept: application/json")
+
+filename=$(curl -sS "${H[@]}" --data-binary "{\"url\":\"$link\"}" https://api.1fichier.com/v1/file/info.cgi |
+            jq -r '.filename // empty')
+[ -n "$filename" ] || { echo "Filename not found"; exit 1; }
+
+tok=$(curl -sS "${H[@]}" --data-binary "{\"url\":\"$link\"}" https://api.1fichier.com/v1/download/get_token.cgi)
+status=$(jq -r '.status' <<<"$tok")
+[ "$status" = "OK" ] || { jq -r '.message' <<<"$tok"; exit 1; }
+
+url=$(jq -r '.url' <<<"$tok")
+[ -n "$url" ] || { echo "URL introuvable"; exit 1; }
+
+# Download
+curl -fSL -C - --retry 10 --retry-delay 10 "$url" -o "$filename"
+echo "$filename Downloaded"
